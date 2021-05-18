@@ -6,12 +6,14 @@ import random
 import copy
 from tqdm import tqdm
 import os
-
+from difflib import ndiff
 
 from bwaligner.structures import *
 
 
-def kmers(string:str, k:int) -> str:
+def kmers(string:str, 
+		k:int) -> str:
+
     for i in range(len(string) - k + 1):
         yield string[i:i+k]
 
@@ -47,7 +49,7 @@ def Tour(start:str,
                 i += offset
                 tour = tour[ : i + 1 ] + tour_ + tour[ i + 1 : ]
                 offset += len(tour_)
-                print("-----------")
+                print("-----------", file=sys.stderr)
         except:
             continue
             
@@ -55,8 +57,8 @@ def Tour(start:str,
 
 
 
-def BuildDeBrujinGraph(reads: FastqExperiment, 
-						k:int = 12) -> defaultdict:
+def BuildDeBrujinGraph(reads: FastqExperiment,
+	k:int = 12) -> defaultdict:
     """
     Function builds de Bruijn graph from all reads
     Takes a FastqExperiment object with reads
@@ -86,19 +88,20 @@ def BuildGenomeFromDeBrujnGraph(graph:defaultdict) -> Genome:
         if len(graph[key]) % 2 == 0 and len(graph[key]) != 0:
             start = key
             break
-    print(f"START: {start}")
+    print(f"START: {start}", file=sys.stderr)
     tour = Tour(start, graph)
     return Genome("".join([tour[0]] + [s[-1] for s in tour[1:]]))
 
 
-def BuildGenome(reads: FastqExperiment, k: int)-> Genome:
+def BuildGenome(reads: FastqExperiment, 
+	k: int)-> Genome:
     """
     Function collects genome from all reads
     Takes a FastqExperiment object with reads
     Returns genome sequence
     """
 
-    graph = BuildDeBrujinGraph(reads)
+    graph = BuildDeBrujinGraph(reads,k)
     genome = BuildGenomeFromDeBrujnGraph(graph)
     return genome
 

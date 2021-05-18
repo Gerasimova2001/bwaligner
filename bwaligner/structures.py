@@ -84,9 +84,19 @@ class FastqExperiment:
                 reads[read.name] = read
 
         return cls(reads)
+
+    def __len__(self):
+        return len(self.reads)
     def __iter__(self):
         for key, value in self.reads.items():
-            yield (key, value)    
+            yield (key, value)  
+
+
+    def __setitem__(self, key:str, item:FastqRead):
+        self.reads[key] = item
+
+    def __getitem__(self, key:str):
+        return self.reads[key]  
     
 
 
@@ -157,8 +167,6 @@ class Genome(UserString):
     @classmethod
     def from_file(cls, fileobj):
         return cls(fileobj.readline().strip())
-
-
 
 
 

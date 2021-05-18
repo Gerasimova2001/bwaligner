@@ -1,7 +1,7 @@
 from bwaligner.structures import *
 import datetime
 from tqdm import tqdm
-
+import sys
 from typing import Union
 
 class BWAligner(object):
@@ -30,7 +30,7 @@ class BWAligner(object):
         self.Occ = dict()
         self.Occ_reverse = dict()
         self.alphabet = {'a', 'c', 'g', 't'}
-        self.D = list()#empty list for later use
+        self.D = list() #empty list for later use
         
         reverse_reference = reference[::-1] #reverse reference
 
@@ -40,7 +40,7 @@ class BWAligner(object):
         #initialize 2 auxillary datastructures
         for char in self.alphabet:
             self.C[char] = 0
-            self.Occ[char] = list()# in Occ, each character has an associated list of integer values (for each index along the reference)
+            self.Occ[char] = list() # in Occ, each character has an associated list of integer values (for each index along the reference)
             self.Occ_reverse[char] = list()
     
         #append the ending character to the reference string
@@ -103,11 +103,16 @@ class BWAligner(object):
         
         
         
-    def align(self, reads:FastqExperiment, difference_threshold:Union[int, None] = None)->AlignmentResult:
+    def align(self, 
+        reads:FastqExperiment, 
+        difference_threshold:Union[int, None] = None)->AlignmentResult:
+        """
+        """
+
         res = AlignmentResult(start=datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d %H:%M:%S"))
        
         for read_name, read in reads:
-            print(read_name)
+            print(f"Processing {read_name}", file=sys.stderr)
             if difference_threshold == None:
                 read_position = self._find_match(read.seq, len(read)// 20)
             else: 
@@ -120,14 +125,17 @@ class BWAligner(object):
             
 
     #get the position(s) of the query in the reference
-    def _find_match(self,query,difference_threshold:int):
+    def _find_match(self,
+        query:str,
+        difference_threshold:int):
         if difference_threshold == 0:
             return self._exact_match(query)
         else:
             return self._inexact_match(query,difference_threshold)
 
     #exact matching - no indels or mismatches allowed
-    def _exact_match(self, query):
+    def _exact_match(self, 
+        query:str):
         query = query.lower()
         i = 0
         j = self.n - 1
@@ -142,23 +150,31 @@ class BWAligner(object):
         return matches
 
     #inexact matching, z is the max threshold for allowed edits
-    def _inexact_match(self,query,z):
+    def _inexact_match(self,
+        query:str,
+        z):
+
         self.calculate_d(query)
         self.suffix_array_indeces = self._inexact_recursion(query, len(query)-1, z, 0, self.n-1)
         return [self.suffix_array[x] for x in self.suffix_array_indeces]#return the values in the SA
 
     #recursion function that effectively "walks" through the suffix tree using the SA, BWT, Occ and C datastructures
-    def _inexact_recursion(self,query,i,z,k,l):
+    def _inexact_recursion(self,
+        query:str,
+        i,
+        z,
+        k,
+        l):
         tempset = set()
             
         #2 stop conditions, one when too many differences have been encountered, another when the entire query has been matched, terminating in success
         if (z < self.get_D(i) and self.use_lower_bound_tree_pruning) or (z < 0 and not self.use_lower_bound_tree_pruning): #reached the limit of differences at this stage, terminate this path traversal
             if self.debug:
-                print ("too many differences, terminating path\n")
+                print ("too many differences, terminating path\n", file=sys.stderr)
             return set()#return empty set	
         if i < 0:#empty query string, entire query has been matched, return SA indexes k:l
             if self.debug:
-                print (f"query string finished, terminating path, success! k = {k}, l = {l} \n")
+                print (f"query string finished, terminating path, success! k = {k}, l = {l} \n", file=sys.stderr)
             for m in range(k,l+1):
                 tempset.add(m)
             return tempset
@@ -174,7 +190,7 @@ class BWAligner(object):
                 if self.indels_allowed: 
                     result = result.union(self._inexact_recursion(query,i,z-self.deletion_penalty,newK,newL))# Deletion
                 if self.debug:
-                    print( f"char '{char} found' with k = {newK} , l = {newL} , z = {z}: parent k = {k}, l = {l}")
+                    print( f"char '{char} found' with k = {newK} , l = {newL} , z = {z}: parent k = {k}, l = {l}", file=sys.stderr)
                 if char == query[i]:#if the char was correctly aligned, then continue without decrementing z (differences)
                     result = result.union(self._inexact_recursion(query,i-1,z,newK,newL))
                 else:#continue but decrement z, to indicate that this was a difference/unalignment
@@ -183,7 +199,8 @@ class BWAligner(object):
 
     #calculates the D array for a query, used to prune the tree walk and increase speed for inexact searching
 
-    def calculate_d(self,query):
+    def calculate_d(self,
+        query:str):
         k = 0
         l = self.n-1
         z = 0
@@ -199,7 +216,10 @@ class BWAligner(object):
 
     #returns normal Occ value, otherwise returns the reverse Occ if explicitly passed as an argument
     #NOTE Occ('a',-1) = 0 for all 'a'
-    def OCC(self,char,index,reverse=False):
+    def OCC(self,
+        char:str,
+        index:int,
+        reverse:bool = False):
         if index < 0:
             return 0
         else:
@@ -211,7 +231,8 @@ class BWAligner(object):
     #gets values from the D array
     #NOTE D(-1) = 0
         
-    def get_D(self,index):
+    def get_D(self,
+        index:int):
         if index < 0:
             return 0
         else:
